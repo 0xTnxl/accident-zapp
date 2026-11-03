@@ -1,0 +1,16 @@
+{
+  "name": "@accident/rating",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest --run",
+    "test:coverage": "vitest --run --coverage"
+  }
+}

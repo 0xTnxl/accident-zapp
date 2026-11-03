@@ -1,0 +1,50 @@
+name: Deploy
+
+# Deploys the web app to Vercel using the Vercel CLI.
+# - Production deploy on push to `main`.
+# - Preview deploy on pull requests.
+# Requires repository secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Preview deploy for pull requests.
+      - name: Deploy Preview
+        if: github.event_name == 'pull_request'
+        run: |
+          npx --yes vercel@latest pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      # Production deploy on push to main.
+      - name: Deploy Production
+        if: github.event_name == 'push'
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

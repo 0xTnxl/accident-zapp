@@ -1,0 +1,17 @@
+{
+  "name": "@accident/relayer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest --run",
+    "test:coverage": "vitest --run --coverage"
+  },
+  "dependencies": {
+    "@accident/protocol": "workspace:*",
+    "@solana/web3.js": "1.99.0",
+    "@supabase/supabase-js": "2.117.2"
+  }
+}

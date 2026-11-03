@@ -1,0 +1,27 @@
+packages:
+  - packages/*
+  - apps/*
+
+# rpc-websockets (a dependency of @solana/web3.js, used for its WebSocket RPC subscriptions) ships
+# a CJS file that does require('uuid'), but depends on uuid@14, which dropped CommonJS support
+# entirely starting at uuid@12. That crashes Vercel's Node function runtime (ERR_REQUIRE_ESM) the
+# moment anything touches @solana/web3.js's Connection/websocket path. Pin to the newest release
+# that still ships CJS; rpc-websockets only calls the stable v4() export, unaffected by any API
+# change between 11.x and 14.x.
+overrides:
+  uuid: 11.1.1
+
+# Dependency build scripts are off unless listed here.
+allowBuilds:
+  # Links the platform binary for esbuild, which the bundler (Vite) and tsx both need.
+  esbuild: true
+  # Optional native speed-ups for the `ws` websocket library inside @solana/web3.js. We only use
+  # HTTP JSON-RPC and the browser never loads them, so no native code runs for these.
+  bufferutil: false
+  utf-8-validate: false
+
+# pnpm holds back packages published very recently. Vite 8.3.3 (2026-10-06) is let through on
+# purpose: its notes list dev-server file-serving fixes (fs.serve, safeModulePaths), the commit is
+# GitHub-verified and the release is immutable. Drop this entry once the version is a week old.
+minimumReleaseAgeExclude:
+  - vite@8.3.3

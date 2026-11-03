@@ -1,0 +1,32 @@
+{
+  "project_type": "TypeScript pnpm monorepo for 'Accident' (Dead-and-Injured game with a public Solana Memo record, devnet). Packages: engine (pure rules), protocol (session state machine + commitment/memo/finalise), solana (web3.js v1 Chain adapter). Apps: web (React PWA), relayer (Vercel functions). This task adds apps/house-bot (Node).",
+  "language": "TypeScript (strict, ESM, Node 22)",
+  "build_system": "pnpm 11 workspaces (pnpm-workspace.yaml globs packages/* and apps/*). Package manager pinned to pnpm@11.24.0. node_modules installed via `pnpm install`. No bundler/build step for library packages; apps run via tsx or vite. Internal deps use `workspace:*` and import source .ts directly (exports map points at ./src/index.ts).",
+  "test_framework": "Vitest 5.0.3. Each package/app has its own vitest.config.ts and a `test` script `vitest --run` (plus `test:coverage`). Tests colocated in a `test/` directory per package (e.g. apps/relayer/test/*.test.ts, packages/protocol/src/testing/ holds in-memory fakes used by tests). Coverage thresholds in relayer are 100% statements/branches/functions/lines; match that bar for new app code.",
+  "build_command": "pnpm typecheck (runs `pnpm -r --if-present typecheck && tsc -p tsconfig.json`)",
+  "test_command": "pnpm test (runs `pnpm -r --if-present test`)",
+  "verification_instructions": "From repo root run, in order: `pnpm install` (already done), `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test`. All four must pass. CI (.github/workflows/ci.yml) runs exactly these plus web build and e2e; the new package must not break any of them. To run only the new package's tests: `pnpm --filter @accident/house-bot test`.",
+  "snapshot_or_generated_files": "None relevant to this task. (packages/solana has a devnet-simulate.result.json produced by `pnpm --filter @accident/solana devnet-simulate`, unrelated to the bot.)",
+  "setup_instructions": "`pnpm install` at repo root (completed, baseline typecheck/lint/format/test all green). New package apps/house-bot must be a pnpm workspace member: package.json name `@accident/house-bot`, type module, scripts typecheck/test/test:coverage mirroring apps/relayer, dependencies on `@accident/engine`, `@accident/protocol`, and `@accident/solana` via `workspace:*` (solana only needed for the optional live-wiring entry). After adding package.json, re-run `pnpm install` so the workspace link and lockfile update.",
+  "environment_constraints": "Network is OPEN_INTERNET but all behaviour MUST be demonstrable and tested with the in-memory fakes from `@accident/protocol/testing` (MemoryHub/HubTransport, MemoryChain, MemoryStorage, ManualClock). Do NOT depend on live devnet in tests: README notes a real Memo has never been submitted on devnet (faucet 429) and live Supabase is unexercised. Live wiring to SolanaChain/SupabaseTransport may exist as a thin, untested-at-runtime entry point but tests must not call the network.",
+  "contribution_requirements": "TypeScript strict with exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax (so use `import type` for type-only imports; eslint rule @typescript-eslint/consistent-type-imports is error). Unused args must be prefixed `_`. No secrets committed; .env is git-ignored; CI greps built output and the repo for key material. Prettier enforced (`format:check`). Every new tsconfig.json extends ../../tsconfig.base.json.",
+  "key_patterns": "The protocol Session (packages/protocol/src/session.ts) is the engine: create with {room, role, identity, secret, saltHex, hostKey?, transport, chain, storage, clock, options?}, call start(), subscribe((view)=>...) and call submitGuess(code) when view.canGuess is true. apps/web/src/friend/controller.ts is the canonical headless driver (it subscribes and calls submitGuess). CRITICAL FINDING: the Session auto-answers HONESTLY inside its private step() via `score(secret, guess)` and exposes NO hook to send a wrong ANSWER. Guess selection uses engine: build Turn[] from view.guesses/view.answers, `candidatesFromHistory(history)`, then `chooseGuess(level, candidates, rng)` (opening is OPENING_GUESS). Finalisation (packages/protocol/src/finalise.ts) catches lies: it re-scores every ANSWER against the revealed secret via findLies and charges a `wrong-answer` fault, so the honest side wins by reason 'fault'. Identity via generateIdentity()/identityFromSecretKey() from @accident/protocol; salt via generateSaltHex(). The in-memory fakes live in @accident/protocol/testing (import path 'packages/protocol/src/testing/index.ts').",
+  "relevant_files": [
+    "packages/protocol/src/session.ts (the engine the bot drives; note honest-only auto-answer in step())",
+    "packages/protocol/src/ports.ts (Transport/Chain/Storage/Clock interfaces)",
+    "packages/protocol/src/testing/index.ts (MemoryHub, HubTransport, MemoryChain, MemoryStorage, ManualClock, settle)",
+    "packages/protocol/src/finalise.ts (lie detection via findLies -> wrong-answer fault; Verdict shape)",
+    "packages/protocol/src/messages.ts (Identity, signMessage, encodeMessage, Body incl ANSWER, generateIdentity)",
+    "packages/engine/src/strategies.ts (chooseGuess, LEVELS, Level, OPENING_GUESS)",
+    "packages/engine/src/codes.ts (candidatesFromHistory, Turn, filterCandidates, allCodes)",
+    "packages/engine/src/game.ts (gameStatus, findLies, verdictFromSecrets)",
+    "packages/engine/src/rng.ts (secureRng, mulberry32, randomCode)",
+    "apps/web/src/friend/controller.ts (reference: headless Session driver)",
+    "apps/web/src/friend/vault.ts (reference: Storage/Clock port wiring and burner identity)",
+    "packages/solana/src/chain.ts (SolanaChain for optional live wiring)",
+    "apps/relayer/package.json, apps/relayer/tsconfig.json, apps/relayer/vitest.config.ts (conventions for a new Node workspace member)",
+    ".kiro/specs/accident/requirements.md REQ-17 and REQ-18.3",
+    ".kiro/specs/accident/design.md sections 1, 4.1, 5, 11"
+  ],
+  "directory_structure": "Repo root has packages/{engine,protocol,solana} and apps/{web,relayer}. New app goes in apps/house-bot with src/ (bot code) and test/ (vitest). tsconfig extends ../../tsconfig.base.json; add vitest.config.ts like apps/relayer's. Root scripts fan out via `pnpm -r --if-present`, so the new package is picked up automatically once it has typecheck/test scripts."
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@accident/solana",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest --run",
+    "test:coverage": "vitest --run --coverage",
+    "devnet-check": "tsx scripts/devnet-check.ts",
+    "devnet-simulate": "tsx scripts/devnet-simulate.ts"
+  },
+  "dependencies": {
+    "@accident/protocol": "workspace:*",
+    "@solana/web3.js": "1.99.0",
+    "bs58": "6.0.0"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}

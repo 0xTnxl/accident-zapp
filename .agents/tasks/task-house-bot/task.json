@@ -1,0 +1,15 @@
+{
+  "task_id": "task-house-bot",
+  "task_description": "Build the Node House Bot (REQ-17 / Task 11) in a new apps/house-bot package. Honest mode (11.1) plays a full game through the real @accident/protocol Session (commit, relay, reveal) choosing guesses with @accident/engine. Cheating mode (11.2) lies about one answer, demonstrated and tested as caught via the finalisation lie-detection path. The bot is labelled as a bot in the room (REQ-17.3). All behaviour is tested against the in-memory fakes in @accident/protocol/testing; no live network.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "branch": "feat/house-bot",
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "On branch feat/house-bot (off main). pnpm typecheck, pnpm lint pass. pnpm test passes: engine 187, protocol 387 (incl. new session.seam.test.ts), solana 26, relayer 123, web 182, house-bot 11. apps/house-bot and packages/protocol hold 100% coverage. The honest two-bot game reaches a 'final' verdict with zero faults through the real Session; the cheating test proves the lie is caught (verdict final/'fault'/'seat1', a wrong-answer fault on the cheater's seat with claimed !== actual and actual === score(secret,guess)) and would fail if lie detection or the answerPolicy seam were reverted. The Session change is additive (answerPolicy optional; no behaviour change when omitted). docker_build skipped: no Dockerfile in repo. NOTE: repo-root `pnpm format:check` reports ONE failing file, `.agents/tasks/task-verifier-page/2026-10-07-191958-review.md`, which is an untracked artifact from a separate parallel Verifier-page effort, not part of this branch's committed changes; prettier --check over all House Bot tracked files (apps/house-bot, packages/protocol/src/session.ts, session.seam.test.ts, task state) passes clean."
+  }
+}

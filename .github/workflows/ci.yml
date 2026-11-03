@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test:coverage
+
+      # Build both variants: the live app, and the simulation used by the browser tests.
+      - run: pnpm --filter @accident/web build
+      - run: pnpm --filter @accident/web build:sim
+
+      # Secrets must never reach the browser bundle or the repository. Only files served to users are
+      # scanned (not source maps, which carry the Supabase library's own docs that mention
+      # service_role), and only for the names of our own secrets.
+      - name: No secrets in the built app
+        run: |
+          if grep -rEl --include='*.js' --include='*.html' --include='*.css' \
+              'FUNDING_WALLET_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY' apps/web/dist apps/web/dist-sim; then
+            echo "A server secret name appears in the built web app"; exit 1
+          fi
+      - name: No key material in the repository
+        run: |
+          if git grep -nE '\[([0-9]{1,3}, ?){63}[0-9]{1,3}\]' -- . ':!pnpm-lock.yaml' ':!*.md'; then
+            echo "Something that looks like a 64-byte secret key is committed"; exit 1
+          fi
+
+      # Real-browser tests on a phone-sized viewport.
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: End-to-end tests
+        run: pnpm --filter @accident/web e2e
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/test-results
+          retention-days: 7

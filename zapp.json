@@ -1,0 +1,65 @@
+{
+  "app": "accident",
+  "name": "Accident",
+  "version": "1.0.0",
+  "origins": [
+    "https://REPLACE-WITH-ACCIDENT-PRODUCTION-ORIGIN"
+  ],
+  "entry": "/",
+  "visibility": "public",
+  "custody": "contract",
+  "results": "checked",
+  "category": "games",
+  "description": "Guess your friend's secret code before they guess yours. Every answer is checked.",
+  "developer": {
+    "name": "Accident",
+    "support": "REPLACE@example.com",
+    "privacy": "https://REPLACE-WITH-ACCIDENT-PRODUCTION-ORIGIN/privacy"
+  },
+  "permissions": [
+    "post_card",
+    "attest"
+  ],
+  "cardTypes": [
+    "result"
+  ],
+  "chatActions": [
+    {
+      "id": "challenge",
+      "label": "Challenge",
+      "sheet": "/",
+      "interaction": "challenge"
+    }
+  ],
+  "interactionTypes": {
+    "challenge": {
+      "states": [
+        "sent",
+        "accepted",
+        "in_progress",
+        "resolved",
+        "expired"
+      ],
+      "initial": "sent",
+      "transitions": {
+        "sent": [
+          "accepted",
+          "expired"
+        ],
+        "accepted": [
+          "in_progress",
+          "resolved",
+          "expired"
+        ],
+        "in_progress": [
+          "resolved",
+          "expired"
+        ]
+      },
+      "terminal": [
+        "resolved",
+        "expired"
+      ]
+    }
+  }
+}

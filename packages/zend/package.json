@@ -1,0 +1,23 @@
+{
+  "name": "@accident/zend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@accident/protocol": "workspace:*",
+    "bs58": "6.0.0",
+    "tweetnacl": "1.0.3"
+  },
+  "devDependencies": {
+    "@accident/engine": "workspace:*"
+  }
+}

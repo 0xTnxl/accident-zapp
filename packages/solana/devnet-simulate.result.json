@@ -1,0 +1,92 @@
+{
+  "rpc": "https://api.devnet.solana.com",
+  "memoProgram": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+  "simulatedFeePayer": "HyEiyg5z2RSvLuTJtmGWgsQeicMRp3Qyu93j4GTSWP5T",
+  "outcomes": {
+    "commit (78 bytes)": {
+      "bytes": 78,
+      "serialised": 248,
+      "error": null,
+      "units": 42841,
+      "memoLogged": "Program log: Memo (len 78): \"ACC1|44FSDS|C|94e501f54ee5828eb7b6dfbfc5a06f13414ede610f8095ea7b373a5db021dbcc\"",
+      "signedByLogged": true
+    },
+    "reveal v1.1 (83 bytes)": {
+      "bytes": 83,
+      "serialised": 253,
+      "error": null,
+      "units": 44458,
+      "memoLogged": "Program log: Memo (len 83): \"ACC1|44FSDS|R|1964|980109624afbec017be39430cff4da3eb99a3fde3b52a1f5ba81240f651a0233\"",
+      "signedByLogged": true
+    },
+    "reveal with transcript hash (148 bytes)": {
+      "bytes": 148,
+      "serialised": 319,
+      "error": null,
+      "units": 67277,
+      "memoLogged": "Program log: Memo (len 148): \"ACC1|44FSDS|R|1964|980109624afbec017be39430cff4da3eb99a3fde3b52a1f5ba81240f651a0233|abababababababababababababababababababababababababababababababab\"",
+      "signedByLogged": true
+    },
+    "300 bytes": {
+      "bytes": 300,
+      "serialised": 471,
+      "error": null,
+      "units": 120592,
+      "memoLogged": "Program log: Memo (len 300): \"ACC1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"",
+      "signedByLogged": true
+    },
+    "500 bytes": {
+      "bytes": 500,
+      "serialised": 671,
+      "error": null,
+      "units": 190587,
+      "memoLogged": "Program log: Memo (len 500): \"ACC1|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"",
+      "signedByLogged": true
+    },
+    "566 bytes": {
+      "bytes": 566,
+      "serialised": 737,
+      "error": {
+        "InstructionError": [0, "ProgramFailedToComplete"]
+      },
+      "units": 200000,
+      "signedByLogged": true
+    },
+    "567 bytes": {
+      "bytes": 567,
+      "serialised": 738,
+      "error": {
+        "InstructionError": [0, "ProgramFailedToComplete"]
+      },
+      "units": 200000,
+      "signedByLogged": true
+    },
+    "600 bytes": {
+      "bytes": 600,
+      "serialised": 771,
+      "error": {
+        "InstructionError": [0, "ProgramFailedToComplete"]
+      },
+      "units": 200000,
+      "signedByLogged": true
+    },
+    "800 bytes": {
+      "bytes": 800,
+      "serialised": 971,
+      "error": {
+        "InstructionError": [0, "ProgramFailedToComplete"]
+      },
+      "units": 200000,
+      "signedByLogged": true
+    },
+    "1000 bytes": {
+      "bytes": 1000,
+      "serialised": 1171,
+      "error": {
+        "InstructionError": [0, "ProgramFailedToComplete"]
+      },
+      "units": 200000,
+      "signedByLogged": true
+    }
+  }
+}
