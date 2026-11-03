@@ -10,6 +10,9 @@ import { Button } from '../ui/Button.js';
 import { Shell } from '../ui/Shell.js';
 import type { Identity as ZendIdentity, Interaction, Zend } from './appkit.js';
 import { createZendBackend, zendAttestKey } from './zendBackend.js';
+import { Ladder } from './ladder.js';
+import type { LadderView } from './LadderScreens.js';
+import { LadderRoot, TOURNAMENT_KEY } from './LadderScreens.js';
 
 /**
  * Accident as a ZApp. A `challenge` interaction is the room:
@@ -55,6 +58,11 @@ async function startFrom(zend: Zend, me: ZendIdentity): Promise<string | null> {
 
 export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => void }) {
   const [state, setState] = useState<State>({ step: 'loading' });
+  // Opened without a game: a tournament game just ended returns to its lobby.
+  const [ladderView, setLadderView] = useState<LadderView | null>(() => {
+    const t = sessionStorage.getItem(TOURNAMENT_KEY);
+    return t ? { name: 'tournament', id: t } : null;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -112,13 +120,28 @@ export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => v
       </Shell>
     );
   }
+  if (state.step === 'no-game' && ladderView) {
+    return (
+      <LadderRoot
+        zend={zend}
+        view={ladderView}
+        go={setLadderView}
+        onBack={() => {
+          sessionStorage.removeItem(TOURNAMENT_KEY);
+          setLadderView(null);
+        }}
+      />
+    );
+  }
   if (state.step === 'no-game') {
     return (
       <Shell title="Accident">
         <div className="flex flex-1 flex-col justify-center gap-4">
           <p className="text-lg font-bold">Guess the code before your friend does.</p>
           <p>To play a friend, open a chat with them in Zend, tap +, then Apps, then Challenge.</p>
-          <Button onClick={onPractice}>Practice against the computer</Button>
+          <Button onClick={() => setLadderView({ name: 'tournaments' })}>Tournaments</Button>
+          <Button tone="plain" onClick={() => setLadderView({ name: 'board' })}>Leaderboard</Button>
+          <Button tone="plain" onClick={onPractice}>Practice against the computer</Button>
           <Button tone="plain" onClick={() => void zend.close()}>Back to Zend</Button>
         </div>
       </Shell>
@@ -159,7 +182,15 @@ function ReadyGame({ zend, game }: { zend: Zend; game: Ready }) {
       if (v.gateOpen) void report(zend, game, 'in_progress');
       if (!reported && v.phase === 'final' && v.verdict?.kind === 'final') {
         reported = true;
-        void finish(zend, game, v.verdict.result, v.verdict.faults.map((f) => f.seat));
+        void finish(zend, game, v.verdict.result, v.verdict.faults.map((f) => f.seat)).then(() =>
+          // Rate it: the server re-checks the game from this record and Zend's receipts.
+          new Ladder(zend)
+            .submit(game.interactionId, {
+              room: game.room,
+              messages: controller.transcript().map((l) => JSON.parse(l) as unknown),
+            })
+            .catch(() => undefined),
+        );
       }
     };
     onView(controller.view());
@@ -180,7 +211,8 @@ function ReadyGame({ zend, game }: { zend: Zend; game: Ready }) {
       backend={game.backend}
       go={() => void zend.close()}
       vaultKey={game.vaultKey}
-      leave={() => void zend.close()}
+      // A tournament game goes back to the tournament; any other game closes Accident.
+      leave={() => (sessionStorage.getItem(TOURNAMENT_KEY) ? (window.location.search = '') : void zend.close())}
       rematch={rematch}
     />
   );

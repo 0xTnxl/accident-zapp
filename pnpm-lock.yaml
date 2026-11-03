@@ -63,12 +63,28 @@ importers:
       '@accident/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@accident/rating':
+        specifier: workspace:*
+        version: link:../../packages/rating
+      '@accident/zend':
+        specifier: workspace:*
+        version: link:../../packages/zend
       '@solana/web3.js':
         specifier: 1.99.0
         version: 1.99.0(bufferutil@4.1.0)(typescript@6.0.3)(utf-8-validate@6.0.6)
       '@supabase/supabase-js':
         specifier: 2.117.2
         version: 2.117.2
+    devDependencies:
+      '@accident/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      bs58:
+        specifier: 6.0.0
+        version: 6.0.0
+      tweetnacl:
+        specifier: 1.0.3
+        version: 1.0.3
 
   apps/web:
     dependencies:
@@ -81,6 +97,9 @@ importers:
       '@accident/solana':
         specifier: workspace:*
         version: link:../../packages/solana
+      '@accident/zend':
+        specifier: workspace:*
+        version: link:../../packages/zend
       '@solana/web3.js':
         specifier: 1.99.0
         version: 1.99.0(bufferutil@4.1.0)(typescript@6.0.3)(utf-8-validate@6.0.6)
@@ -157,6 +176,8 @@ importers:
         specifier: 1.0.3
         version: 1.0.3
 
+  packages/rating: {}
+
   packages/solana:
     dependencies:
       '@accident/protocol':
@@ -172,6 +193,22 @@ importers:
       tsx:
         specifier: 4.23.15
         version: 4.23.15
+
+  packages/zend:
+    dependencies:
+      '@accident/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      bs58:
+        specifier: 6.0.0
+        version: 6.0.0
+      tweetnacl:
+        specifier: 1.0.3
+        version: 1.0.3
+    devDependencies:
+      '@accident/engine':
+        specifier: workspace:*
+        version: link:../engine
 
 packages:
 

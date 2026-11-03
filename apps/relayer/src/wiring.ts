@@ -6,6 +6,9 @@ import type { DripDeps } from './drip.js';
 import { DEFAULT_DRIP } from './drip.js';
 import type { EventDeps } from './event.js';
 import { DEFAULT_EVENT_LIMIT } from './event.js';
+import type { LadderDeps } from './ladder/handler.js';
+import { LadderStore } from './ladder/store.js';
+import { DEFAULT_ZEND_API, HttpZendApi } from './ladder/zend.js';
 
 /** Everything the functions read from the host's environment. Secrets live here and nowhere else. */
 export interface RelayerEnv {
@@ -14,6 +17,10 @@ export interface RelayerEnv {
   FUNDING_WALLET_SECRET_KEY?: string | undefined;
   SUPABASE_URL?: string | undefined;
   SUPABASE_SERVICE_ROLE_KEY?: string | undefined;
+  /** Accident's Zend app key (`zapp_sk_...`), from `zend apps create`. Host secret. */
+  ZEND_APP_KEY?: string | undefined;
+  /** Override for testing against another Zend; defaults to production. */
+  ZEND_API_URL?: string | undefined;
 }
 
 export const DEFAULT_RPC = 'https://api.devnet.solana.com';
@@ -59,6 +66,21 @@ export function eventDeps(
     counter: new DatabaseCounter(db),
     store: (record) => storeEvent(db, record),
     perIpPerDay: DEFAULT_EVENT_LIMIT,
+    now: Date.now,
+  };
+}
+
+/** The leaderboard and tournaments need both Supabase and Zend; without either they don't serve. */
+export function ladderDeps(env: RelayerEnv, make: typeof createClient = createClient): LadderDeps | undefined {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !env.ZEND_APP_KEY?.startsWith('zapp_sk_')) {
+    return undefined;
+  }
+  const db = make(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return {
+    store: new LadderStore(db),
+    zend: new HttpZendApi(env.ZEND_APP_KEY, env.ZEND_API_URL || DEFAULT_ZEND_API),
     now: Date.now,
   };
 }

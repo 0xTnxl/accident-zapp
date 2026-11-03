@@ -3,7 +3,7 @@
   "name": "Accident",
   "version": "1.0.0",
   "origins": [
-    "https://REPLACE-WITH-ACCIDENT-PRODUCTION-ORIGIN"
+    "https://accident-flax.vercel.app"
   ],
   "entry": "/",
   "visibility": "public",
@@ -13,8 +13,8 @@
   "description": "Guess your friend's secret code before they guess yours. Every answer is checked.",
   "developer": {
     "name": "Accident",
-    "support": "REPLACE@example.com",
-    "privacy": "https://REPLACE-WITH-ACCIDENT-PRODUCTION-ORIGIN/privacy"
+    "support": "tosinoyinboblessed@gmail.com",
+    "privacy": "https://accident-flax.vercel.app/privacy"
   },
   "permissions": [
     "post_card",

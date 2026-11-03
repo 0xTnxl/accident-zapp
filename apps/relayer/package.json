@@ -11,7 +11,14 @@
   },
   "dependencies": {
     "@accident/protocol": "workspace:*",
+    "@accident/rating": "workspace:*",
+    "@accident/zend": "workspace:*",
     "@solana/web3.js": "1.99.0",
     "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "@accident/engine": "workspace:*",
+    "tweetnacl": "1.0.3",
+    "bs58": "6.0.0"
   }
 }

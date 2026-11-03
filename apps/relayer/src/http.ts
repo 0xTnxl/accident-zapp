@@ -25,16 +25,16 @@ export type Parsed = { ok: true; value: unknown } | { ok: false; response: Respo
  * Reads a small JSON body. Refuses other content types and anything over the size limit before
  * trusting a byte of it, including when the client lies about `content-length`.
  */
-export async function readJson(request: Request): Promise<Parsed> {
+export async function readJson(request: Request, maxBytes = MAX_BODY_BYTES): Promise<Parsed> {
   if (!(request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) {
     return { ok: false, response: error(415, 'Send JSON') };
   }
   const declared = Number(request.headers.get('content-length') ?? 0);
-  if (declared > MAX_BODY_BYTES) return { ok: false, response: error(413, 'Request too large') };
+  if (declared > maxBytes) return { ok: false, response: error(413, 'Request too large') };
 
   const text = await request.text();
   // The header can be wrong or missing, so measure what actually arrived.
-  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
+  if (new TextEncoder().encode(text).length > maxBytes) {
     return { ok: false, response: error(413, 'Request too large') };
   }
   try {

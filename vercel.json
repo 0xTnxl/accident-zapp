@@ -1,9 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @accident/engine --filter @accident/protocol --filter @accident/solana --filter @accident/zend --filter @accident/relayer build && pnpm --filter @accident/web build",
+  "buildCommand": "pnpm --filter @accident/engine --filter @accident/protocol --filter @accident/rating --filter @accident/solana --filter @accident/zend --filter @accident/relayer build && pnpm --filter @accident/web build",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
+    {
+      "source": "/api/ladder/:path*",
+      "destination": "/api/ladder?path=:path*"
+    },
     {
       "source": "/((?!api/|assets/|\\.well-known/|.*\\..*).*)",
       "destination": "/index.html"
