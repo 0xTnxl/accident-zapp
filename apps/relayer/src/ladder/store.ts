@@ -150,18 +150,25 @@ export class LadderStore {
         .gt('games', 0)
         .order('rating', { ascending: false })
         .order('games', { ascending: false })
+        .order('id', { ascending: true })
         .limit(limit),
       'leaderboard',
     ) as PlayerRow[];
   }
 
-  /** 1-based position among rated players. */
-  async rankOf(rating: number): Promise<number> {
+  /**
+   * 1-based position among rated players, in exactly the leaderboard's order (rating, then games,
+   * then id). Counting only higher ratings gave tied players the same rank as each other while
+   * the list showed them one after another, so the leaderboard's #2 could be told they're #1.
+   */
+  async rankOf(p: Pick<PlayerRow, 'id' | 'rating' | 'games'>): Promise<number> {
+    // id is a validated zu_ + hex id and rating/games are numbers, so they're safe in the filter.
+    const r = String(p.rating);
     const res = await this.db
       .from('players')
       .select('id', { count: 'exact', head: true })
       .gt('games', 0)
-      .gt('rating', rating);
+      .or(`rating.gt.${r},and(rating.eq.${r},games.gt.${p.games}),and(rating.eq.${r},games.eq.${p.games},id.lt.${p.id})`);
     if (res.error) throw new Error(`rank: ${res.error.message}`);
     return (res.count ?? 0) + 1;
   }

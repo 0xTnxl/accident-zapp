@@ -1,6 +1,6 @@
 import { error, json, readJson } from '../http.js';
 import { checkGame } from './check.js';
-import { PROVISIONAL_RD, rateGame } from './ratings.js';
+import { PROVISIONAL_GAMES, rateGame } from './ratings.js';
 import type { LadderStore, PlayerRow, RatedGameRow, TournamentRow } from './store.js';
 import type { ZendApi, ZendPlayer } from './zend.js';
 
@@ -47,7 +47,7 @@ const publicPlayer = (p: PlayerRow | undefined, id: string) => ({
   username: p?.username ?? null,
   avatar: p?.avatar ?? null,
   rating: Math.round(p?.rating ?? 1500),
-  provisional: (p?.rd ?? 350) > PROVISIONAL_RD,
+  provisional: (p?.games ?? 0) < PROVISIONAL_GAMES,
 });
 
 /** One person's view of a checked game. */
@@ -195,7 +195,7 @@ async function leaderboard(request: Request, me: ZendPlayer, deps: LadderDeps): 
   const [top, mine] = await Promise.all([deps.store.leaderboard(limit), deps.store.player(me.appUserId)]);
   const you =
     mine && mine.games > 0
-      ? { ...publicPlayer(mine, mine.id), rank: await deps.store.rankOf(mine.rating), games: mine.games }
+      ? { ...publicPlayer(mine, mine.id), rank: await deps.store.rankOf(mine), games: mine.games }
       : null;
   return json(200, {
     ok: true,
@@ -224,7 +224,7 @@ async function mine(me: ZendPlayer, deps: LadderDeps): Promise<Response> {
       wins: p?.wins ?? 0,
       draws: p?.draws ?? 0,
       losses: p?.losses ?? 0,
-      rank: p && p.games > 0 ? await deps.store.rankOf(p.rating) : null,
+      rank: p && p.games > 0 ? await deps.store.rankOf(p) : null,
     },
     recent: recent.map((g) => {
       const view = gameFor(g, me.appUserId);

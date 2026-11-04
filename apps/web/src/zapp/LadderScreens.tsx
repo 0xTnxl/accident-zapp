@@ -102,7 +102,7 @@ function Board({ ladder, onBack }: { ladder: Ladder; onBack: () => void }) {
           </ol>
           <p className="text-sm text-ink-soft">
             Every rated game is checked against both players' records, so a result can't be faked. A ? means
-            the rating is still settling.
+            the player has played fewer than 5 rated games, so their rating is still settling.
           </p>
         </div>
       )}
