@@ -70,17 +70,38 @@ export function eventDeps(
   };
 }
 
+/**
+ * Dashboard values are easy to paste with extras: surrounding spaces or quotes, or the whole
+ * `NAME=value` line the Zend CLI prints. Accept those and use just the value.
+ */
+export function cleanSecret(raw: string | undefined, name: string): string | undefined {
+  if (raw === undefined) return undefined;
+  let v = raw.trim();
+  if (v.startsWith(`${name}=`)) v = v.slice(name.length + 1).trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1).trim();
+  return v === '' ? undefined : v;
+}
+
 /** The leaderboard and tournaments need both Supabase and Zend; without either they don't serve. */
 export function ladderDeps(env: RelayerEnv, make: typeof createClient = createClient): LadderDeps | undefined {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY || !env.ZEND_APP_KEY?.startsWith('zapp_sk_')) {
+  const url = cleanSecret(env.SUPABASE_URL, 'SUPABASE_URL');
+  const serviceKey = cleanSecret(env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY');
+  const appKey = cleanSecret(env.ZEND_APP_KEY, 'ZEND_APP_KEY');
+  // Names and shape only, never values, so the logs say what to fix without leaking anything.
+  const problems = [
+    !url && 'SUPABASE_URL is not set',
+    !serviceKey && 'SUPABASE_SERVICE_ROLE_KEY is not set',
+    !appKey && 'ZEND_APP_KEY is not set',
+    appKey && !appKey.startsWith('zapp_sk_') && `ZEND_APP_KEY should start with zapp_sk_ (it starts with "${appKey.slice(0, 4)}")`,
+  ].filter((p): p is string => typeof p === 'string');
+  if (problems.length > 0 || !url || !serviceKey || !appKey) {
+    console.error(`ladder unavailable: ${problems.join('; ')}`);
     return undefined;
   }
-  const db = make(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const db = make(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   return {
     store: new LadderStore(db),
-    zend: new HttpZendApi(env.ZEND_APP_KEY, env.ZEND_API_URL || DEFAULT_ZEND_API),
+    zend: new HttpZendApi(appKey, cleanSecret(env.ZEND_API_URL, 'ZEND_API_URL') || DEFAULT_ZEND_API),
     now: Date.now,
   };
 }
