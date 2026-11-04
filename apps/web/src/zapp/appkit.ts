@@ -135,6 +135,8 @@ export interface Zend {
       data?: Record<string, unknown>;
       visibility?: Interaction["visibility"];
       expiresInSecs?: number;
+      /** If these same people already have an unfinished one of this type (last 30 min), return it. */
+      reuseOpen?: boolean;
     }): Promise<Interaction>;
     get(id: string): Promise<Interaction>;
     update(id: string, p: { state: string; data?: Record<string, unknown>; idempotencyKey: string; expectedVersion?: number }): Promise<Interaction>;
@@ -227,6 +229,7 @@ export function init(opts: InitOptions = {}): Zend {
       create: (p) => t.call<any>("interaction.create", {
         type: p.type, participants: p.participants ?? [], data: p.data ?? {},
         visibility: p.visibility ?? "participants", expires_in_secs: p.expiresInSecs,
+        reuse_open: p.reuseOpen ?? false,
       }).then(normalize),
       get: (id) => t.call<any>("interaction.get", { id }).then(normalize),
       update: (id, p) => t.call<any>("interaction.update", {

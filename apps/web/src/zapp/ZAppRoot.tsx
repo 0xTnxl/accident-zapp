@@ -6,6 +6,7 @@ import { ActiveRoom } from '../friend/FriendRoot.js';
 import { controllerFor } from '../friend/registry.js';
 import { loadOrCreateIdentity } from '../friend/vault.js';
 import type { Backend } from '../friend/backend.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { Button } from '../ui/Button.js';
 import { Shell } from '../ui/Shell.js';
 import type { Identity as ZendIdentity, Interaction, Zend } from './appkit.js';
@@ -35,6 +36,7 @@ type Ready = {
   backend: Backend;
   me: ZendIdentity;
   interaction: Interaction;
+  realtime: SupabaseClient;
 };
 
 type State =
@@ -85,7 +87,7 @@ async function startFrom(zend: Zend, me: ZendIdentity): Promise<string | null> {
   if (zend.launch.start === 'challenge' && zend.launch.from) {
     const prev = await zend.interaction.get(zend.launch.from);
     const others = prev.participants.filter((p) => p.appUserId !== me.appUserId).map((p) => p.appUserId);
-    return (await zend.interaction.create({ type: 'challenge', participants: others })).id;
+    return (await zend.interaction.create({ type: 'challenge', participants: others, reuseOpen: true })).id;
   }
   return null;
 }
@@ -120,7 +122,7 @@ export function ZAppRoot({ zend, onPractice, onHow }: { zend: Zend; onPractice: 
         const vaultKey = `zapp-${id}`;
         const identity = loadOrCreateIdentity(localStorage, vaultKey);
         const room = await roomForInteraction(id);
-        const { backend, chain } = createZendBackend(readEnv(), zend, id, await zendAttestKey());
+        const { backend, chain, realtime } = createZendBackend(readEnv(), zend, id, await zendAttestKey());
 
         let hostKey: string | undefined;
         if (role === 'host') {
@@ -146,7 +148,7 @@ export function ZAppRoot({ zend, onPractice, onHow }: { zend: Zend; onPractice: 
         }
         await step('getting ready', chain.bindKey(identity)).catch(() => undefined);
         if (!cancelled) {
-          setState({ step: 'ready', interactionId: id, room, role, hostKey, identity, vaultKey, backend, me, interaction });
+          setState({ step: 'ready', interactionId: id, room, role, hostKey, identity, vaultKey, backend, me, interaction, realtime });
         }
       } catch (e) {
         if (!cancelled) setState({ step: 'error', message: e instanceof Error ? e.message : 'Something went wrong' });
@@ -243,25 +245,60 @@ function ReadyGame({ zend, game }: { zend: Zend; game: Ready }) {
     return controller.onView(onView);
   }, [controller, zend, game]);
 
+  // New game: both players stay together. Whoever taps first starts it (and is the host); the
+  // other player is told right away over the game's relay and gets a Join button. If both tap,
+  // Zend hands the second one the game the first already started.
+  const [offer, setOffer] = useState<string>();
+  const channel = useMemo(
+    () => game.realtime.channel(`accident-next:${game.interactionId}`, { config: { broadcast: { self: false } } }),
+    [game.realtime, game.interactionId],
+  );
+  useEffect(() => {
+    channel
+      .on('broadcast', { event: 'next' }, (m) => {
+        const next = (m.payload as { id?: unknown } | undefined)?.id;
+        if (typeof next === 'string' && /^int_[a-z0-9]{12}$/.test(next)) setOffer(next);
+      })
+      .subscribe();
+    return () => {
+      void game.realtime.removeChannel(channel);
+    };
+  }, [channel, game.realtime]);
+  const open = (id: string) => {
+    window.location.search = `?interaction=${encodeURIComponent(id)}`;
+  };
   const rematch = useCallback(() => {
     void (async () => {
+      if (offer) return open(offer);
       const others = game.interaction.participants.filter((p) => p.appUserId !== game.me.appUserId).map((p) => p.appUserId);
-      const next = await zend.interaction.create({ type: 'challenge', participants: others });
-      window.location.search = `?interaction=${encodeURIComponent(next.id)}`;
+      const next = await zend.interaction.create({ type: 'challenge', participants: others, reuseOpen: true });
+      await channel.send({ type: 'broadcast', event: 'next', payload: { id: next.id } }).catch(() => undefined);
+      open(next.id);
     })();
-  }, [zend, game]);
+  }, [zend, game, offer, channel]);
+  const opponent = nameOf(game.interaction.participants.find((p) => p.appUserId !== game.me.appUserId));
 
   return (
-    <ActiveRoom
-      route={route}
-      backend={game.backend}
-      go={() => void zend.close()}
-      vaultKey={game.vaultKey}
-      // A tournament game goes back to the tournament; any other game closes Accident.
-      leave={() => (session.get(TOURNAMENT_KEY) ? (window.location.search = '') : void zend.close())}
-      opponentName={nameOf(game.interaction.participants.find((p) => p.appUserId !== game.me.appUserId))}
-      rematch={rematch}
-    />
+    <>
+      <ActiveRoom
+        route={route}
+        backend={game.backend}
+        go={() => void zend.close()}
+        vaultKey={game.vaultKey}
+        // A tournament game goes back to the tournament; any other game closes Accident.
+        leave={() => (session.get(TOURNAMENT_KEY) ? (window.location.search = '') : void zend.close())}
+        opponentName={opponent}
+        rematch={rematch}
+      />
+      {offer && (
+        <div className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-md items-center gap-3 rounded-t-2xl bg-ink p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-paper shadow-lg" role="status">
+          <span className="min-w-0 flex-1 font-bold">{opponent} wants to play again</span>
+          <button type="button" className="rounded-xl bg-paper px-5 py-3 font-bold text-ink" onClick={() => open(offer)}>
+            Join
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 

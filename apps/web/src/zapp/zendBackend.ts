@@ -1,6 +1,7 @@
 import type { AttestReceipt, ZendPort } from '@accident/zend';
 import { ZendChain } from '@accident/zend';
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Backend, BackendEnv } from '../friend/backend.js';
 import { SupabaseTransport } from '../friend/transports.js';
 import type { Zend } from './appkit.js';
@@ -48,7 +49,7 @@ export function createZendBackend(
   zend: Zend,
   interactionId: string,
   zendPublicKey: string | undefined,
-): { backend: Backend; chain: ZendChain } {
+): { backend: Backend; chain: ZendChain; realtime: SupabaseClient } {
   if (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_ANON_KEY) {
     throw new Error('Accident is not configured. Missing: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY');
   }
@@ -62,6 +63,7 @@ export function createZendBackend(
   });
   return {
     chain,
+    realtime,
     backend: {
       kind: 'zend',
       transport: () => new SupabaseTransport(realtime),
