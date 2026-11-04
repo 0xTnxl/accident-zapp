@@ -95,6 +95,7 @@ export function ActiveRoom({
   vaultKey,
   leave,
   rematch,
+  opponentName,
 }: {
   route: Extract<Route, { name: 'room' }>;
   backend: Backend;
@@ -104,6 +105,8 @@ export function ActiveRoom({
   /** ZApp mode: leaving closes the app and rematch starts a new challenge, instead of routing. */
   leave?: (() => void) | undefined;
   rematch?: (() => void) | undefined;
+  /** ZApp mode: who the invite went to, shown while waiting. */
+  opponentName?: string | undefined;
 }) {
   // Two tabs of one browser share storage. In the simulation build only, `?as=name` makes a tab a
   // separate player so a game can be played against yourself. A real device ignores it.
@@ -210,6 +213,7 @@ export function ActiveRoom({
       onExport={onExport}
       onLeave={onLeave}
       onRematch={onRematch}
+      opponentName={opponentName}
     />
   );
 }

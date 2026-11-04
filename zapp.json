@@ -21,7 +21,8 @@
     "attest"
   ],
   "cardTypes": [
-    "result"
+    "result",
+    "invite"
   ],
   "chatActions": [
     {
@@ -58,6 +59,24 @@
       },
       "terminal": [
         "resolved",
+        "expired"
+      ]
+    },
+    "tournament_invite": {
+      "states": [
+        "sent",
+        "accepted",
+        "expired"
+      ],
+      "initial": "sent",
+      "transitions": {
+        "sent": [
+          "accepted",
+          "expired"
+        ]
+      },
+      "terminal": [
+        "accepted",
         "expired"
       ]
     }

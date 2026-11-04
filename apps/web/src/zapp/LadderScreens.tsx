@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../ui/Button.js';
 import { Shell } from '../ui/Shell.js';
 import type { Zend } from './appkit.js';
+import { ZendError } from './appkit.js';
 import type { BoardRow, LadderPlayer, Standing, Tournament } from './ladder.js';
 import { Ladder, ratingLabel } from './ladder.js';
+import { session } from './storage.js';
 
 /** Remembers the tournament a game came from, so finishing it returns to the lobby. */
 export const TOURNAMENT_KEY = 'accident:tournament';
@@ -61,7 +63,7 @@ export function LadderRoot({
   if (view.name === 'board') return <Board ladder={ladder} onBack={onBack} />;
   if (view.name === 'tournaments') return <Tournaments ladder={ladder} go={go} onBack={onBack} />;
   if (view.name === 'create') return <Create ladder={ladder} go={go} />;
-  return <Lobby ladder={ladder} id={view.id} go={go} />;
+  return <Lobby zend={zend} ladder={ladder} id={view.id} go={go} />;
 }
 
 function Board({ ladder, onBack }: { ladder: Ladder; onBack: () => void }) {
@@ -232,7 +234,101 @@ function Create({ ladder, go }: { ladder: Ladder; go: (v: LadderView) => void })
   );
 }
 
-function Lobby({ ladder, id, go }: { ladder: Ladder; id: string; go: (v: LadderView) => void }) {
+/**
+ * Sends a tournament invite into the chat with this person: a small interaction to hang the card
+ * on, and an invite card whose Join button opens the tournament.
+ */
+async function sendTournamentInvite(zend: Zend, t: Tournament, target: string, from: string) {
+  const secsLeft = Math.max(60, Math.round((Date.parse(t.endsAt) - Date.now()) / 1000));
+  const i = await zend.interaction.create({
+    type: 'tournament_invite',
+    participants: [target],
+    data: { tournament: t.id },
+    expiresInSecs: secsLeft,
+  });
+  await zend.postCard({
+    interactionId: i.id,
+    template: 'invite',
+    placement: 'chat',
+    idempotencyKey: `${i.id}:invite`,
+    slots: {
+      title: `${from} invited you to ${t.name}`.slice(0, 80),
+      subtitle: t.status === 'live' ? 'Live now. Tap Join to play.' : `Starts ${when(t.startsAt)}`,
+      emoji: '🏆',
+      buttons: [{ label: 'Join', action: 'open_sheet', path: '/' }],
+    },
+  });
+}
+
+function inviteError(e: unknown, who: string): string {
+  const code = e instanceof ZendError ? e.code : '';
+  if (code === 'PERSON_NOT_FOUND') return `Couldn't find ${who} on Zend.`;
+  if (code === 'POSTING_NOT_ALLOWED') return 'Let Accident post to your chats in Zend: Settings, then Connected apps.';
+  if (code === 'CARD_LIMIT') return "You've sent a lot of invites today. Try again tomorrow.";
+  return "That invite didn't go through. Try again.";
+}
+
+function Invite({ zend, ladder, t, inIt }: { zend: Zend; ladder: Ladder; t: Tournament; inIt: Set<string> }) {
+  const { data } = useLoad(() => ladder.me(), [ladder]);
+  const [handle, setHandle] = useState('');
+  const [sent, setSent] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string>();
+  const [note, setNote] = useState<string>();
+  const people = useMemo(() => {
+    const seen = new Map<string, LadderPlayer>();
+    for (const g of data?.recent ?? []) if (!inIt.has(g.opponent.id)) seen.set(g.opponent.id, g.opponent);
+    return [...seen.values()].slice(0, 8);
+  }, [data, inIt]);
+  const me = data?.player.name ?? 'A friend';
+
+  const send = async (target: string, label: string) => {
+    setBusy(target);
+    setNote(undefined);
+    try {
+      await sendTournamentInvite(zend, t, target, me);
+      setSent((s) => new Set(s).add(target));
+      setNote(`Invite sent to ${label}.`);
+      if (target.startsWith('@')) setHandle('');
+    } catch (e) {
+      setNote(inviteError(e, label));
+    } finally {
+      setBusy(undefined);
+    }
+  };
+  const typed = handle.trim().replace(/^@+/, '').toLowerCase();
+
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border-2 border-rule p-4">
+      <h2 className="font-bold">Invite friends</h2>
+      <p className="text-sm text-ink-soft">They get an invite in your chat with them and join with one tap.</p>
+      {people.map((p) => (
+        <div key={p.id} className="flex items-center gap-3">
+          <Avatar p={p} />
+          <span className="min-w-0 flex-1 truncate font-bold">{p.name}</span>
+          <Button block={false} tone="plain" disabled={busy !== undefined || sent.has(p.id)} onClick={() => void send(p.id, p.name)}>
+            {sent.has(p.id) ? 'Invited' : 'Invite'}
+          </Button>
+        </div>
+      ))}
+      <div className="flex gap-2">
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          placeholder="@username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          className="min-w-0 flex-1 rounded-xl border-2 border-rule bg-transparent px-4 py-3"
+        />
+        <Button block={false} disabled={busy !== undefined || !/^[a-z0-9_.]{2,30}$/.test(typed)} onClick={() => void send(`@${typed}`, `@${typed}`)}>
+          Invite
+        </Button>
+      </div>
+      {note && <p aria-live="polite" className="text-sm">{note}</p>}
+    </section>
+  );
+}
+
+function Lobby({ zend, ladder, id, go }: { zend: Zend; ladder: Ladder; id: string; go: (v: LadderView) => void }) {
   const { data, error, reload } = useLoad(() => ladder.tournament(id), [ladder, id]);
   const [looking, setLooking] = useState(false);
   const [note, setNote] = useState<string>();
@@ -248,7 +344,7 @@ function Lobby({ ladder, id, go }: { ladder: Ladder; id: string; go: (v: LadderV
         try {
           const r = await ladder.pair(id);
           if (r.status === 'playing' && r.game) {
-            sessionStorage.setItem(TOURNAMENT_KEY, id);
+            session.set(TOURNAMENT_KEY, id);
             window.location.search = `?interaction=${encodeURIComponent(r.game)}`;
             return;
           }
@@ -286,7 +382,7 @@ function Lobby({ ladder, id, go }: { ladder: Ladder; id: string; go: (v: LadderV
   };
   const leave = async () => {
     setLooking(false);
-    sessionStorage.removeItem(TOURNAMENT_KEY);
+    session.remove(TOURNAMENT_KEY);
     await ladder.leave(id).catch(() => undefined);
     reload();
   };
@@ -322,6 +418,9 @@ function Lobby({ ladder, id, go }: { ladder: Ladder; id: string; go: (v: LadderV
           )}
           {t.status === 'upcoming' && t.joined && (
             <p className="text-ink-soft">You’re in. Come back when it starts to get matched.</p>
+          )}
+          {t.status !== 'finished' && (
+            <Invite zend={zend} ladder={ladder} t={t} inIt={new Set(data.standings.map((s) => s.player.id))} />
           )}
           <ol className="flex flex-col">
             {data.standings.map((s: Standing) => (

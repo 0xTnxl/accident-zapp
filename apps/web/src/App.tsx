@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { init as initZend } from './zapp/appkit.js';
 import { analytics } from './lib/analytics.js';
 import { useRoute } from './lib/useRoute.js';
-import { Home } from './screens/Home.js';
+import { Landing } from './screens/Landing.js';
 import { How } from './screens/How.js';
 import { Practice } from './screens/Practice.js';
 import { Stats } from './screens/Stats.js';
@@ -28,7 +28,7 @@ const zend = initZend();
 
 function Loading() {
   return (
-    <Shell title="Play a friend">
+    <Shell title="Accident">
       <p className="py-6 text-ink-soft" role="status">
         Loading…
       </p>
@@ -38,9 +38,12 @@ function Loading() {
 
 export function App(): ReactNode {
   const [route, go] = useRoute();
-  const [inZApp, setInZApp] = useState(zend.environment !== 'external');
+  // Inside Zend (mobile app or app.usezend.app) the ZApp is the home screen. Practice and How to
+  // play step out of it, and their back buttons step back in.
+  const embedded = zend.environment !== 'external';
+  const [inZApp, setInZApp] = useState(embedded);
   useEffect(() => analytics().send({ name: 'app_open' }), []);
-  const home = (): void => go({ name: 'home' });
+  const home = (): void => (embedded ? setInZApp(true) : go({ name: 'home' }));
   if (inZApp) {
     return (
       <Suspense fallback={<Loading />}>
@@ -50,6 +53,10 @@ export function App(): ReactNode {
             setInZApp(false);
             go({ name: 'practice' });
           }}
+          onHow={() => {
+            setInZApp(false);
+            go({ name: 'how' });
+          }}
         />
       </Suspense>
     );
@@ -57,15 +64,7 @@ export function App(): ReactNode {
 
   switch (route.name) {
     case 'home':
-      return (
-        <Home
-          onPractice={() => go({ name: 'practice' })}
-          onFriend={() => go({ name: 'friend' })}
-          onHow={() => go({ name: 'how' })}
-          onStats={() => go({ name: 'stats' })}
-          onVerify={() => go({ name: 'verify' })}
-        />
-      );
+      return <Landing onPractice={() => go({ name: 'practice' })} onHow={() => go({ name: 'how' })} />;
     case 'how':
       return <How onBack={home} onPlay={() => go({ name: 'practice' })} />;
     case 'stats':

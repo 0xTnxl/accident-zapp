@@ -75,6 +75,10 @@ export class Ladder {
     return (await this.call<{ players: BoardRow[]; you: (BoardRow & { rank: number }) | null }>('leaderboard?limit=100')).body;
   }
 
+  async me() {
+    return (await this.call<{ player: BoardRow & { rank: number | null }; recent: { opponent: LadderPlayer }[] }>('me')).body;
+  }
+
   async tournaments() {
     return (await this.call<{ live: Tournament[]; upcoming: Tournament[]; finished: Tournament[] }>('tournaments')).body;
   }

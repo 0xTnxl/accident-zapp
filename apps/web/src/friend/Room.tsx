@@ -39,6 +39,8 @@ export interface RoomProps {
   onRematch: () => void;
   /** Milliseconds, for countdowns. Injected so tests control time. */
   now: () => number;
+  /** Inside Zend: the other player's name. The invite goes to them in the chat, so no code is shown. */
+  opponentName?: string | undefined;
 }
 
 /** The whole friend game screen. What it shows depends only on the setup state and the session view. */
@@ -132,9 +134,27 @@ function Waiting({
   origin,
   onLeave,
   backend,
+  opponentName,
 }: RoomProps & { view: SessionView }) {
   const link = shareLink(origin, room, hostKey);
   const [copied, setCopied] = useState<'yes' | 'no' | undefined>();
+  if (backend.kind === 'zend') {
+    const who = opponentName ?? 'your friend';
+    return (
+      <Shell title="Accident" onBack={onLeave}>
+        <div className="flex flex-1 flex-col justify-center gap-3 text-center" data-testid="waiting">
+          <p className="text-lg font-bold">
+            {role === 'host' ? `Waiting for ${who} to join…` : `Joining ${who}'s game…`}
+          </p>
+          <p className="text-sm text-ink-soft">
+            {role === 'host'
+              ? `We sent ${who} an invite in your chat. The game starts as soon as they tap Join.`
+              : 'The game starts in a moment.'}
+          </p>
+        </div>
+      </Shell>
+    );
+  }
 
   async function share(): Promise<void> {
     const shared = await shareText({

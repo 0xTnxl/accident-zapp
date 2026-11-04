@@ -13,6 +13,7 @@ import { createZendBackend, zendAttestKey } from './zendBackend.js';
 import { Ladder } from './ladder.js';
 import type { LadderView } from './LadderScreens.js';
 import { LadderRoot, TOURNAMENT_KEY } from './LadderScreens.js';
+import { session } from './storage.js';
 
 /**
  * Accident as a ZApp. A `challenge` interaction is the room:
@@ -45,6 +46,39 @@ type State =
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Zend calls are given a deadline so a stalled step shows an error naming it instead of
+ * "Loading…" forever (the SDK itself waits up to 10 minutes, for money sheets).
+ */
+function step<T>(label: string, p: Promise<T>, ms = 20_000): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Zend didn't answer (${label})`)), ms)),
+  ]);
+}
+
+
+const nameOf = (p: { name: string; username: string | null } | undefined) =>
+  p?.name || (p?.username ? `@${p.username}` : 'your friend');
+
+/** The host tells the other person in the chat, so they join with one tap instead of a code. */
+async function sendInvite(zend: Zend, id: string, me: ZendIdentity) {
+  await zend
+    .postCard({
+      interactionId: id,
+      template: 'invite',
+      placement: 'chat',
+      idempotencyKey: `${id}:invite`,
+      slots: {
+        title: `${me.name || 'Your friend'} challenged you to Accident`.slice(0, 80),
+        subtitle: 'Guess their code before they guess yours',
+        emoji: '🎯',
+        buttons: [{ label: 'Join', action: 'open_sheet', path: '/' }],
+      },
+    })
+    .catch(() => undefined);
+}
+
 async function startFrom(zend: Zend, me: ZendIdentity): Promise<string | null> {
   if (zend.launch.interaction) return zend.launch.interaction;
   // "Rematch" on a result card: a new challenge with the same people.
@@ -56,11 +90,11 @@ async function startFrom(zend: Zend, me: ZendIdentity): Promise<string | null> {
   return null;
 }
 
-export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => void }) {
+export function ZAppRoot({ zend, onPractice, onHow }: { zend: Zend; onPractice: () => void; onHow: () => void }) {
   const [state, setState] = useState<State>({ step: 'loading' });
   // Opened without a game: a tournament game just ended returns to its lobby.
   const [ladderView, setLadderView] = useState<LadderView | null>(() => {
-    const t = sessionStorage.getItem(TOURNAMENT_KEY);
+    const t = session.get(TOURNAMENT_KEY);
     return t ? { name: 'tournament', id: t } : null;
   });
 
@@ -68,10 +102,19 @@ export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => v
     let cancelled = false;
     void (async () => {
       try {
-        const me = await zend.identity.get();
-        const id = await startFrom(zend, me);
+        const me = await step('who you are', zend.identity.get());
+        const id = await step('starting the game', startFrom(zend, me));
         if (!id) return setState({ step: 'no-game' });
-        let interaction = await zend.interaction.get(id);
+        let interaction = await step('loading the game', zend.interaction.get(id));
+        // A tournament invite from the chat: open that tournament's lobby.
+        if (interaction.type === 'tournament_invite') {
+          const t = interaction.data.tournament;
+          if (interaction.state === 'sent' && interaction.participants[0]?.appUserId !== me.appUserId) {
+            void zend.interaction.update(id, { state: 'accepted', idempotencyKey: `${id}:accept` }).catch(() => undefined);
+          }
+          if (typeof t === 'string') setLadderView({ name: 'tournament', id: t });
+          return setState({ step: 'no-game' });
+        }
         const host = interaction.participants[0];
         const role = host?.appUserId === me.appUserId ? 'host' : 'guest';
         const vaultKey = `zapp-${id}`;
@@ -82,24 +125,26 @@ export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => v
         let hostKey: string | undefined;
         if (role === 'host') {
           if (interaction.data.hostKey !== identity.publicKey) {
-            await zend.interaction.update(id, {
+            await step('opening the room', zend.interaction.update(id, {
               state: interaction.state, data: { hostKey: identity.publicKey }, idempotencyKey: `${id}:hostKey`,
-            });
+            }));
           }
+          // Tournament games are paired by the server and both players open them on their own.
+          if (interaction.data.tournament !== true) void sendInvite(zend, id, me);
         } else {
           // Wait for the host to open the game and publish its key.
           while (typeof interaction.data.hostKey !== 'string') {
             if (cancelled) return;
             setState({ step: 'waiting-host', name: host?.name ?? 'your friend' });
             await sleep(2500);
-            interaction = await zend.interaction.get(id);
+            interaction = await step('loading the game', zend.interaction.get(id));
           }
           hostKey = interaction.data.hostKey as string;
           if (interaction.state === 'sent') {
             await zend.interaction.update(id, { state: 'accepted', idempotencyKey: `${id}:accept` }).catch(() => undefined);
           }
         }
-        await chain.bindKey(identity).catch(() => undefined);
+        await step('getting ready', chain.bindKey(identity)).catch(() => undefined);
         if (!cancelled) {
           setState({ step: 'ready', interactionId: id, room, role, hostKey, identity, vaultKey, backend, me, interaction });
         }
@@ -127,7 +172,7 @@ export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => v
         view={ladderView}
         go={setLadderView}
         onBack={() => {
-          sessionStorage.removeItem(TOURNAMENT_KEY);
+          session.remove(TOURNAMENT_KEY);
           setLadderView(null);
         }}
       />
@@ -142,6 +187,7 @@ export function ZAppRoot({ zend, onPractice }: { zend: Zend; onPractice: () => v
           <Button onClick={() => setLadderView({ name: 'tournaments' })}>Tournaments</Button>
           <Button tone="plain" onClick={() => setLadderView({ name: 'board' })}>Leaderboard</Button>
           <Button tone="plain" onClick={onPractice}>Practice against the computer</Button>
+          <Button tone="plain" onClick={onHow}>How to play</Button>
           <Button tone="plain" onClick={() => void zend.close()}>Back to Zend</Button>
         </div>
       </Shell>
@@ -212,7 +258,8 @@ function ReadyGame({ zend, game }: { zend: Zend; game: Ready }) {
       go={() => void zend.close()}
       vaultKey={game.vaultKey}
       // A tournament game goes back to the tournament; any other game closes Accident.
-      leave={() => (sessionStorage.getItem(TOURNAMENT_KEY) ? (window.location.search = '') : void zend.close())}
+      leave={() => (session.get(TOURNAMENT_KEY) ? (window.location.search = '') : void zend.close())}
+      opponentName={nameOf(game.interaction.participants.find((p) => p.appUserId !== game.me.appUserId))}
       rematch={rematch}
     />
   );
