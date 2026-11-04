@@ -208,7 +208,9 @@ function normalize(raw: any): Interaction {
     name: p.name,
     avatar: p.avatar ?? null,
   }));
-  return { ...raw, participants };
+  // Older interactions can come back with null data; the type promises an object.
+  const data = raw?.data && typeof raw.data === "object" ? raw.data : {};
+  return { ...raw, data, participants };
 }
 
 export function init(opts: InitOptions = {}): Zend {
