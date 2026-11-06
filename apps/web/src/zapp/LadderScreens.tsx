@@ -297,10 +297,43 @@ function Invite({ zend, ladder, t, inIt }: { zend: Zend; ladder: Ladder; t: Tour
   };
   const typed = handle.trim().replace(/^@+/, '').toLowerCase();
 
+  // Zend's own picker: lists the player's chats, and Accident only learns who they chose.
+  // Older Zend apps don't have it; the options below still work there.
+  const [canPick, setCanPick] = useState(true);
+  const pickFromChats = async () => {
+    setBusy('pick');
+    setNote(undefined);
+    try {
+      const chosen = await zend.people.pick({ max: 10, title: `Invite to ${t.name}` });
+      const fresh = chosen.filter((p) => !inIt.has(p.appUserId) && !sent.has(p.appUserId));
+      let ok = 0;
+      for (const p of fresh) {
+        try {
+          await sendTournamentInvite(zend, t, p.pick, me);
+          setSent((s) => new Set(s).add(p.appUserId));
+          ok++;
+        } catch (e) {
+          setNote(inviteError(e, p.name));
+        }
+      }
+      if (ok > 0) setNote(ok === 1 ? `Invite sent to ${fresh[0]?.name ?? 'your friend'}.` : `Invites sent to ${ok} friends.`);
+    } catch (e) {
+      if (e instanceof ZendError && e.code === 'UNKNOWN_METHOD') setCanPick(false);
+      else setNote("That didn't open. Try again.");
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
   return (
     <section className="flex flex-col gap-2 rounded-xl border-2 border-rule p-4">
       <h2 className="font-bold">Invite friends</h2>
       <p className="text-sm text-ink-soft">They get an invite in your chat with them and join with one tap.</p>
+      {canPick && (
+        <Button disabled={busy !== undefined} onClick={() => void pickFromChats()}>
+          {busy === 'pick' ? 'Sending…' : 'Choose from your chats'}
+        </Button>
+      )}
       {people.map((p) => (
         <div key={p.id} className="flex items-center gap-3">
           <Avatar p={p} />

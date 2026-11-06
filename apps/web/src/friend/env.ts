@@ -9,6 +9,7 @@ export function readEnv(): BackendEnv {
     VITE_SUPABASE_URL: env.VITE_SUPABASE_URL,
     VITE_SUPABASE_ANON_KEY: env.VITE_SUPABASE_ANON_KEY,
     VITE_DRIP_URL: env.VITE_DRIP_URL,
+    VITE_ZEND_LIVE: env.VITE_ZEND_LIVE,
   };
 }
 

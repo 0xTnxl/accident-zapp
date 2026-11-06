@@ -326,21 +326,62 @@ async function finish(zend: Zend, game: Ready, result: 'seat0' | 'seat1' | 'draw
     idempotencyKey: `${game.interactionId}:resolve`,
   }).catch(() => undefined);
   if (game.role !== 'host') return;
-  const title = winner
+  // Same wording every time for one match (a retry must not post a different line), different
+  // wording between matches so a friend's feed doesn't read like a copy-paste.
+  const pick = <T,>(options: T[]): T => {
+    let h = 0;
+    for (const c of game.interactionId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return options[h % options.length]!;
+  };
+  const first = (p: typeof host) => (name(p).split(' ')[0] ?? name(p)).slice(0, 12);
+  const w = name(winner);
+  const l = name(loser);
+  const chatTitle = winner
     ? cheated
-      ? `${name(winner)} wins. ${name(loser)}'s answers didn't add up`
-      : `${name(winner)} beat ${name(loser)} at Accident`
+      ? `${w} wins. ${l}'s answers didn't add up`
+      : pick([`${w} beat ${l} at Accident`, `${w} outguessed ${l} 🎯`, `${l} couldn't crack ${w}'s code`])
     : `${name(host)} and ${name(guest)} drew at Accident`;
+  // The feed is public to friends, so a called-off game is worded kindly there and the full
+  // reason stays in the private chat card.
+  const feedTitle = winner
+    ? cheated
+      ? `${w} took the win at Accident`
+      : pick([`${w} outguessed ${l} 🎯`, `${l} couldn't crack ${w}'s code`, `${w} read ${l}'s mind`])
+    : pick([`${name(host)} and ${name(guest)} are dead even 🤝`, `${name(host)} and ${name(guest)} drew at Accident`]);
+  const feedSubtitle = winner
+    ? pick(['Think you can do better?', 'Who is next?', 'Guess the code. Beat them to it.'])
+    : pick(['Neither could crack the other', 'Time for a rematch?']);
+  const emoji = winner ? pick(['🎯', '🏆', '😎']) : '🤝';
   await zend.postCard({
     interactionId: game.interactionId,
     template: 'result',
     placement: 'chat',
     idempotencyKey: `${game.interactionId}:card`,
     slots: {
-      title: title.slice(0, 80),
-      emoji: winner ? '😂' : '🤝',
+      title: chatTitle.slice(0, 80),
+      emoji,
       subtitle: 'Checked afterwards so nobody can cheat',
       buttons: [{ label: 'Rematch', action: 'start_interaction', type: 'challenge' }],
+    },
+  }).catch(() => undefined);
+  // The same match on the feed, with a button that turns a result into an invitation. Separate
+  // call: a feed failure (say posting isn't allowed) must never undo the chat card above.
+  await zend.postCard({
+    interactionId: game.interactionId,
+    template: 'result',
+    placement: 'feed',
+    idempotencyKey: `${game.interactionId}:feed`,
+    slots: {
+      title: feedTitle.slice(0, 80),
+      emoji,
+      subtitle: feedSubtitle,
+      buttons: [
+        {
+          label: (winner ? `Challenge ${first(winner)}` : 'Challenge them').slice(0, 20),
+          action: 'start_interaction',
+          type: 'challenge',
+        },
+      ],
     },
   }).catch(() => undefined);
 }

@@ -40,6 +40,8 @@ export interface BackendEnv {
   VITE_SUPABASE_URL?: string | undefined;
   VITE_SUPABASE_ANON_KEY?: string | undefined;
   VITE_DRIP_URL?: string | undefined;
+  /** `off` sends game messages over Supabase only; anything else also uses Zend live rooms. */
+  VITE_ZEND_LIVE?: string | undefined;
 }
 
 export const DEFAULT_RPC = 'https://api.devnet.solana.com';

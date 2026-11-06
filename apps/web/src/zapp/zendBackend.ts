@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Backend, BackendEnv } from '../friend/backend.js';
 import { SupabaseTransport } from '../friend/transports.js';
+import { DualTransport, ZendLiveTransport } from './liveTransport.js';
 import type { Zend } from './appkit.js';
 
 /** Zend's public API, for the attestation key and receipts (both public, no auth). */
@@ -66,7 +67,12 @@ export function createZendBackend(
     realtime,
     backend: {
       kind: 'zend',
-      transport: () => new SupabaseTransport(realtime),
+      // Supabase stays on while players move to Zend live rooms: sending on both means an older
+      // tab or Zend app still gets every message. Set VITE_ZEND_LIVE=off to use Supabase only.
+      transport: () =>
+        env.VITE_ZEND_LIVE === 'off'
+          ? new SupabaseTransport(realtime)
+          : new DualTransport([new SupabaseTransport(realtime), new ZendLiveTransport(zend, interactionId)]),
       chain,
       explorerUrl: () => undefined,
       fund: async () => ({ ok: true, alreadyFunded: true }),
