@@ -134,10 +134,13 @@ export interface Zend {
   identity: { get(): Promise<Identity> };
   /** Send to a Zend user. Amount in USD for now. */
   pay(p: { to: `@${string}`; amount: number; note?: string; reference?: string }): Promise<{ paymentId: string; status: string }>;
-  /** Make an ask link others can pay. Omit amount to let payers choose. */
-  request(p: { amount?: number; note?: string; maxPayments?: number; reference?: string }): Promise<{ id: string; url: string }>;
-  /** Make a money link. Zend shares it; you only get its id. */
-  createLink(p: { amount: number; uses?: number; note?: string; reference?: string }): Promise<{ id: string; status: string }>;
+  /**
+   * Make an ask link others can pay. Omit amount and price to let payers choose. With
+   * `price: { ngn }` the link asks for that many Naira whenever it is paid.
+   */
+  request(p: { amount?: number; price?: { ngn: number }; note?: string; maxPayments?: number; reference?: string }): Promise<{ id: string; url: string }>;
+  /** Make a money link (per person). Zend shares it; you only get its id. */
+  createLink(p: { uses?: number; note?: string; reference?: string } & ({ amount: number } | { price: { ngn: number } })): Promise<{ id: string; status: string }>;
   interaction: {
     create(p: {
       type: string;
@@ -176,9 +179,12 @@ export interface Zend {
   /** Tamper-evident record of a hash (e.g. a commitment). Returns a receipt signed by Zend. */
   attest(p: { label: string; dataHash: string; interactionId?: string }): Promise<AttestReceipt>;
   prize: {
-    /** Host puts up a prize. Amount in USD, at least 1. Zend shows the rules before the host confirms. */
-    create(p: { amount: number; joinInSecs: number; resolveInSecs: number; maxPlayers: number;
-      disputeSecs?: number; reference?: string; interactionId?: string }): Promise<Prize>;
+    /**
+     * Host puts up a prize: `amount` in USD (at least 1) or `price: { ngn }`. Zend shows the
+     * rules before the host confirms.
+     */
+    create(p: { joinInSecs: number; resolveInSecs: number; maxPlayers: number;
+      disputeSecs?: number; reference?: string; interactionId?: string } & ({ amount: number } | { price: { ngn: number } })): Promise<Prize>;
     /** Player joins (free). Only joined players can win. */
     join(id: string): Promise<Prize>;
     /** Host cancels during the wait after results; everything returns to the host. */
@@ -218,7 +224,7 @@ export interface AttestReceipt {
 }
 
 export interface Prize {
-  id: string; app: string; host: string; pot_usd: number; max_players: number; player_count: number;
+  id: string; app: string; host: string; pot_usd: number; /** The pot in Naira as the host set it, when priced in Naira. */ pot_ngn?: number | null; max_players: number; player_count: number;
   join_deadline: string; resolve_deadline: string; dispute_ends: string | null;
   status: "open" | "resolved" | "paid" | "refunded";
   winners: { address: string; app_user_id: string | null; amount_usd: number }[] | null;
